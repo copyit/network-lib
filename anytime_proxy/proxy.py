@@ -1,5 +1,25 @@
 class BaseProxy:
+    """The template of a proxy.
+    
+    Attributes:
+        _anonymity_level: The valid anonymity levels.
+        _geo_info: The geolocation info of  the proxy.
+        _valid_protocols: The valid protocols. (http, https, socks4, socks5)
+        _protocol: The protocol of the proxy.
+        _host: The hostname or IP address of the proxy.
+        _port: The port of the proxy.
+        _relay: Whether the proxy is a relay. 
+                Without relay: Cilent-> Proxy -> Destination
+                With relay: Cilent-> Proxy (Relay) -> Another Proxy -> Destination
+        _anonymity: The anonymity level of the proxy.
+        _test_times: The amount of validation tests performed on the proxy.
+        _average_latency: The average latency (TCP ping) of the proxy.
+        _validity: The validity of the proxy. (Max: 100, Min: 0)
+    """
+
     def __init__(self, protocol, host, port):
+        """Inits BaseProxy with default attributes."""
+
         self._anonymity_level = {
             0: "Transparent",
             1: "Anonymous",
@@ -8,8 +28,8 @@ class BaseProxy:
         self._valid_protocols = {
             "http",
             "https",
-            "socks5",
-            "socks4"
+            "socks4",
+            "socks5"
         }
         self._geo_info = {
             "code": "",
@@ -57,6 +77,9 @@ class BaseProxy:
             "test_times": self._test_times,
             "validity": self._validity
         }
+
+    def to_proxy_string(self):
+        return "{}://{}:{}".format(self._protocol, self._host, self._port)
 
     @property
     def host(self):

@@ -5,27 +5,69 @@ import xml.etree.ElementTree as ElementTree
 
 
 class BaseCrawler:
+    """Fetches the list of proxies from external sources and parses 
+       them into BaseProxy objects.
+    
+    Attributes:
+        _url: The URL of the webpage to be fetched.
+    """
+
     def __init__(self, url):
+        """Init BaseCrawler with _url attribute."""
+
         self._url = url
 
     def run(self, callback):
+        """Asynchronously runs the fetch tasks.
+        
+        Args:
+            callback: The callback function after succeessfully parsing the proxy list.
+        """
+
         asyncio.run(self.bulk_get_proxy(self._url, callback))
 
-    async def bulk_get_proxy(self, urls: set, callback, timeout=15):
+    async def bulk_get_proxy(self, url: set, callback, timeout=15):
+        """Gathers the fetch tasks.
+        
+        Args:
+            url: The list of urls to be tested.
+            callback: The callback function after succeessfully parsing the proxy list.
+            timeout: The timeout limit of the fetch task.
+        """
+
         tasks = []
-        for task_url_protocol in urls:
+        for task_url_protocol in url:
             task_url = task_url_protocol[0]
             task_protocol = task_url_protocol[1]
             tasks.append(self.get_proxy(task_url, callback, default_protocol=task_protocol, timeout=timeout))
         await asyncio.gather(*tasks)
 
     async def get_proxy(self, url: str, callback, default_protocol=None, timeout=15):
+        """Performs individual fetch task.
+        
+        Args:
+            url: The list of urls to be tested.
+            callback: The callback function after succeessfully parsing the proxy list.
+            default_protocol: The default protocol of the proxy list.
+            timeout: The timeout limit of the fetch task.
+        """
+
         async with aiohttp.ClientSession() as session:
             async with session.get(url, timeout=timeout) as resp:
                 resp = await resp.text()
                 callback(await self.parse_response(resp, default_protocol))
 
     async def parse_response(self, resp, default_protocol):
+        """Parses response of the fetch task. To be implemented by each instance class.
+
+        Args:
+            resp: The response text of the fetch task.
+            default_protocol: The default protocol of the proxy list.
+
+        Returns:
+            A list of BaseProxy objects.
+        """
+
         return None
 
 

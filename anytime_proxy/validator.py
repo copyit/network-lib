@@ -5,11 +5,40 @@ import logging
 
 
 class Validator:
-    def __init__(self, proxy_list):
+    """Checks whether a proxy is valid and its anonymity level.
+
+    There are three levels of anoymity:
+        Transparent:    Forward detailed information about you including your IP address 
+                        to the target server you are connecting to.
+
+        Anonymous:      Does not reveal your IP address to a server, however the server 
+                        will know that the connection was made through a proxy because 
+                        of the additional information that is sent with each request.
+
+        High Anonymous: The server you are connecting to has no idea that the connection 
+                        was made through a proxy nor does it know your real IP address.
+
+    Attributes:
+        real_ip: The real IPv4 address of the device.
+    """
+
+    def __init__(self):
+        """Inits Validator with default real_ip attribute."""
+
         test_urls = {
             'https://httpbin.org/get?show_env'
         }
         self.real_ip = "127.0.0.1"
+
+
+    def run(proxy_list: list) -> None:
+        """Asynchronously obtains the real IPv4 address and validates the proxies.
+
+        Args:
+            proxy_list: A list of proxies (instances of anytime_proxy.BaseProxy) 
+                        to be validated.
+        """
+
         asyncio.run(
             self.get_real_ip()
         )
@@ -21,6 +50,8 @@ class Validator:
         )
 
     async def get_real_ip(self) -> None:
+        """Fetches the webpage ('https://httpbin.org/get') to find the real IP address."""
+
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.get('https://httpbin.org/get', timeout=15) as resp:
@@ -42,6 +73,18 @@ class Validator:
             self.real_ip = resp_json.get("origin", self.real_ip)
 
     async def test_bulk(self, proxy_list: list, test_urls: set) -> None:
+        """Gathers the fetch tasks and asynchronously runs them.
+        
+        This method creates fetch tasks for different URLs for each proxy to
+        determine whether both the proxy could be connected and the proxy is
+        not banned by specific websites based on user's preferences.
+
+        Args:
+            proxy_list: A list of proxies (instances of anytime_proxy.BaseProxy) 
+                        to be validated.
+            test_urls: A set of URLs to be tested.
+        """
+
         async with aiohttp.ClientSession() as session:
             tasks = []
             for proxy in proxy_list:
@@ -52,8 +95,15 @@ class Validator:
             await asyncio.gather(*tasks)
 
     async def fetch_html(self, proxy: ap.BaseProxy, url: str, session: aiohttp.ClientSession) -> None:
+        """Fetches the text of webpage with the proxy and check its anonymity level.
+
+        Args:
+            proxy: An instance of anytime_proxy.BaseProxy.
+            url: The URL of the webpage to be fetched.
+            session: An instance of aiohttp.ClientSession created by self.test_bulk().
+        """
         try:
-            async with session.get(url, proxy=proxy, timeout=15) as resp:
+            async with session.get(url, proxy=proxy.to_proxy_string(), timeout=15) as resp:
                 logging.info("Got response [%s] for URL: %s", resp.status, url)
                 resp.raise_for_status()
                 resp_json = await resp.json()
