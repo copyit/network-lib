@@ -78,6 +78,17 @@ class BaseProxy:
             "validity": self._validity
         }
 
+    def to_list(self):
+        return [
+            self._protocol,
+            self._host,
+            self._port,
+            self.anonymity_level,
+            self._test_times,
+            self._average_latency,
+            self._validity
+        ]
+
     def to_proxy_string(self):
         return "{}://{}:{}".format(self._protocol, self._host, self._port)
 
