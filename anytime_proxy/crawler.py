@@ -29,9 +29,9 @@ class BaseCrawler:
             callback: The callback function after succeessfully parsing the proxy list.
         """
 
-        asyncio.run(self.bulk_get_proxy(self._url, callback))
+        asyncio.run(self.bulk_get_proxy(callback, self._url))
 
-    async def bulk_get_proxy(self, url: set, callback, timeout=15):
+    async def bulk_get_proxy(self, callback, url, timeout=15):
         """Gathers the fetch tasks.
         
         Args:
