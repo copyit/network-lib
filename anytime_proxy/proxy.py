@@ -12,9 +12,7 @@ class BaseProxy:
                 Without relay: Cilent-> Proxy -> Destination
                 With relay: Cilent-> Proxy (Relay) -> Another Proxy -> Destination
         _anonymity: The anonymity level of the proxy.
-        _test_times: The amount of validation tests performed on the proxy.
-        _average_latency: The average latency (TCP ping) of the proxy.
-        _validity: The validity of the proxy. (Max: 100, Min: 0)
+        _validity: The validity of the proxy.
     """
 
     def __init__(self, protocol, host, port):
@@ -32,11 +30,17 @@ class BaseProxy:
             "socks5"
         }
         self._geo_info = {
-            "code": "",
-            "name": "",
-            "region_code": "",
-            "region_name": "",
-            "city_name": ""
+            "region_code": "N/A",
+            "region_name": "N/A",
+            "state": "N/A",
+            "city": "N/A",
+            "postal": "N/A",
+            "latitude": "N/A",
+            "longitude": "N/A",
+            "organization": "N/A",
+            "asn": "N/A",
+            "isp": "N/A",
+            "asn_organization": "N/A",
         }
 
         self._protocol = protocol
@@ -44,19 +48,17 @@ class BaseProxy:
         self._port = port
         self._relay = False
         self._anonymity = 0
-        self._test_times = 0
-        self._average_latency = 0.0
-        self._validity = 100
+        self._validity = False
 
     def __str__(self):
         return self.__repr__()
 
     def __repr__(self):
-        return "[{protocol}://{host}:{port}, Region:{geo_code}, Anonymity:{anonymity}]".format(
+        return "[{protocol}://{host}:{port} Region:{geo_code} Anonymity:{anonymity}]".format(
             protocol=self._protocol,
             host=self._host,
             port=self._port,
-            geo_code=self._geo_info['code'],
+            geo_code=self._geo_info['region_code'],
             anonymity=self._anonymity_level[self._anonymity]
         )
 
@@ -72,9 +74,7 @@ class BaseProxy:
             "host": self._host,
             "port": self._port,
             "relay": self.relay,
-            "anonymity": self.anonymity_level,
-            "average_latency": self._average_latency,
-            "test_times": self._test_times,
+            "anonymity": self._anonymity,
             "validity": self._validity
         }
 
@@ -83,9 +83,7 @@ class BaseProxy:
             self._protocol,
             self._host,
             self._port,
-            self.anonymity_level,
-            self._test_times,
-            self._average_latency,
+            self._anonymity,
             self._validity
         ]
 
@@ -106,11 +104,11 @@ class BaseProxy:
             self._relay = is_relay
 
     @property
-    def anonymity_level(self):
-        return self._anonymity_level
+    def anonymity(self):
+        return self._anonymity
 
-    @anonymity_level.setter
-    def anonymity_level(self, level):
+    @anonymity.setter
+    def anonymity(self, level):
         if not level == 1 or level == 2:
             level = 0
-        self._anonymity_level = level
+        self._anonymity = level
