@@ -1,8 +1,8 @@
-import aiohttp
-import asyncio
 import anytime_proxy as ap
 import logging
 import json
+import requests
+import concurrent.futures
 
 
 class Validator:
@@ -24,14 +24,12 @@ class Validator:
     """
 
     def __init__(self):
-        """Inits Validator with default real_ip attribute."""
+        """Inits Validator with default test_urls and real_ip attributes."""
 
-        self.test_urls = {
-            'http://httpbin.org/get?show_env'
-        }
+        self.test_url = 'http://httpbin.org/get?show_env'
         self.real_ip = "127.0.0.1"
 
-    def run(self, proxy_list: list) -> None:
+    def run(self, proxy_list, callback):
         """Asynchronously obtains the real IPv4 address and validates the proxies.
 
         Args:
@@ -39,46 +37,25 @@ class Validator:
                         to be validated.
         """
         try:
-            asyncio.run(
-                self.get_real_ip()
-            )
-            asyncio.run(
-                self.test_bulk(
-                    proxy_list,
-                    self.test_urls
-                )
-            )
-        except (
-                aiohttp.ClientError,
-                aiohttp.ClientConnectorError,
-                TimeoutError,
-                AttributeError
-        ) as exc:
+            self.real_ip = self.get_real_ip()
+            return self.test_bulk(proxy_list, self.test_url, callback)
+
+        except Exception as exc:
             logging.error(
-                "aiohttp exception occurred [{}]: {}".format(
-                    getattr(exc, "status", None),
-                    getattr(exc, "message", None)
+                "Exception occurred: {}".format(
+                    repr(exc)
                 ),
             )
-        except Exception as e:
-            logging.error(
-                "Non-aiohttp exception occurred: {}".format(
-                    getattr(e, "__dict__", {})
-                )
-            )
 
-    async def get_real_ip(self) -> None:
+    @staticmethod
+    def get_real_ip():
         """Fetches the webpage ('https://httpbin.org/get') to find the real IP address."""
 
-        try:
-            async with aiohttp.ClientSession() as session:
-                async with session.get('http://httpbin.org/get', timeout=15) as resp:
-                    resp_json = await resp.json()
-            self.real_ip = resp_json.get("origin", self.real_ip)
-        except Exception:
-            raise
+        resp = requests.get('http://httpbin.org/get', timeout=5)
+        resp_json = resp.json()
+        return resp_json.get("origin", '127.0.0.1')
 
-    async def test_bulk(self, proxy_list: list, test_urls: set) -> None:
+    def test_bulk(self, proxy_list, test_url, callback):
         """Gathers the fetch tasks and asynchronously runs them.
         
         This method creates fetch tasks for different URLs for each proxy to
@@ -88,24 +65,22 @@ class Validator:
         Args:
             proxy_list: A list of proxies (instances of anytime_proxy.BaseProxy) 
                         to be validated.
-            test_urls: A set of URLs to be tested.
+            test_url: The URL to be tested.
         """
-        tasks = []
+        executor = concurrent.futures.ThreadPoolExecutor(max_workers=10)
+        # future_list = {executor.submit(self.fetch_html, proxy, test_url, callback) for proxy in proxy_list}
+        # result_list = concurrent.futures.wait(future_list, timeout=10, return_when=concurrent.futures.ALL_COMPLETED)
+        # return [future.result() for future in result_list[0]]
         for proxy in proxy_list:
-            for url in test_urls:
-                tasks.append(
-                    self.fetch_html(proxy, url)
-                )
-        await asyncio.gather(*tasks)
+            executor.submit(self.fetch_html, proxy, test_url, callback)
 
     @staticmethod
-    async def get_geo_info(ip_address: str) -> dict:
+    def get_geo_info(ip_address: str) -> dict:
         try:
             url = 'https://api.ip.sb/geoip/{}'
-            async with aiohttp.ClientSession() as session:
-                async with session.get(url.format(ip_address), timeout=15) as resp:
-                    logging.info("Got response [%s] for URL: %s", resp.status, url)
-                    resp_json = json.loads(await resp.text())
+            resp = requests.get(url.format(ip_address), timeout=5)
+            logging.info("Got response [%s] for URL: %s", resp.status_code, url)
+            resp_json = json.loads(resp.text)
             return {
                 "region_code": resp_json.get("country_code"),
                 "region_name": resp_json.get("country"),
@@ -121,10 +96,8 @@ class Validator:
             }
         except Exception:
             raise
-        finally:
-            await session.close()
 
-    async def fetch_html(self, proxy: ap.BaseProxy, url: str) -> None:
+    def fetch_html(self, proxy: ap.BaseProxy, url: str, callback):
         """Fetches the text of webpage with the proxy and check its anonymity level.
 
         Args:
@@ -132,19 +105,15 @@ class Validator:
             url: The URL of the webpage to be fetched.
         """
         try:
-            async with aiohttp.ClientSession() as session:
-                async with session.get(url, proxy=proxy.to_proxy_string(), timeout=15) as resp:
-                    logging.info("Got response [%s] for URL: %s", resp.status, url)
-                    resp.raise_for_status()
-                    resp_json = await resp.json()
-
+            resp = requests.get(url, proxies=proxy.to_request_proxy(), timeout=5)
+            logging.info("Got response [%s] for URL: %s", resp.status_code, url)
+            resp_json = resp.json()
             x_forwarded_for = resp_json.get("headers", dict()).get("X-Forwarded-For", None)
             origin = resp_json.get("origin")
-
-            if origin != proxy.host:
-                proxy.relay = True
-            else:
+            if proxy.host in origin:
                 proxy.relay = False
+            else:
+                proxy.relay = True
 
             if self.real_ip in x_forwarded_for:
                 proxy.anonymity = 0
@@ -154,8 +123,9 @@ class Validator:
                 proxy.anonymity = 1
             logging.info("Valid Proxy: {}".format(proxy))
             proxy._validity = True
-            proxy._geo_info = await self.get_geo_info(origin)
+            proxy._geo_info = self.get_geo_info(origin)
         except Exception:
             raise
+
         finally:
-            await session.close()
+            callback(proxy)

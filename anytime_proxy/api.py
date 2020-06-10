@@ -5,15 +5,15 @@ class ProxyAPI:
     def __init__(self):
         pass
 
-    @staticmethod
-    def find():
+    def find(self):
         pass
 
-    @staticmethod
-    def save():
+    def save(self):
         pass
 
-    @staticmethod
-    def test_list(proxy_list):
+    def test_list(self, proxy_list):
         validator = ap.Validator()
-        validator.run(proxy_list)
+        validator.run(proxy_list, print)
+
+    def gather(self):
+        pass

@@ -90,6 +90,12 @@ class BaseProxy:
     def to_proxy_string(self):
         return "{}://{}:{}".format(self._protocol, self._host, self._port)
 
+    def to_request_proxy(self):
+        return {
+            'http': self.to_proxy_string(),
+            'https': self.to_proxy_string()
+        }
+
     @property
     def host(self):
         return self._host
