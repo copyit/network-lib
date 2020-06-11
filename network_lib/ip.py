@@ -17,7 +17,7 @@ def get_internal():
         if s:
             s.close()
 
-def get_external(protocol='default', bypass_proxy=True, timeout=10):
+def get_external(protocol='', bypass_proxy=True, timeout=10):
     try:
         if protocol in ('', 'default'):
             api_url='https://api.ip.sb/ip'
@@ -87,3 +87,16 @@ def get_coordinate(ip_address='', bypass_proxy=True, timeout=10):
     geo_info = get_geo_info(ip_address=ip_address, bypass_proxy=bypass_proxy, timeout=timeout)
     if geo_info:
         return geo_info.get('longitude'), geo_info.get('latitude')
+
+def get_rir_allocation(ip_address='', bypass_proxy=True, timeout=10):
+    try:
+        if not ip_address:
+            ip_address = get_external(bypass_proxy=bypass_proxy, timeout=timeout)
+        with requests.Session() as session:
+            if bypass_proxy:
+                session.trust_env = False
+            resp = requests.get('https://api.bgpview.io/ip/{}'.format(ip_address), timeout=timeout)
+            if resp_json.get('status') == 'ok':
+                return resp_json.get('data').get('rir_allocation')
+    except Exception:
+        raise
