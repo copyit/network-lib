@@ -62,3 +62,18 @@ def get_rir_allocation(ip_address, proxy=None, timeout=10):
             return resp_json.get('data').get('rir_allocation')
     except Exception:
         raise
+
+
+def is_cdn_ip(ip, provider='cloudflare', proxy=None, timeout=5):
+    api_url = {
+        'cloudflare': 'https://api.whatsmycdn.com/isCloudflareIP?ip={}',
+        'fastly': 'https://api.whatsmycdn.com/isFastlyIP?ip={}',
+        'edgecast': 'https://api.whatsmycdn.com/isEdgecastIP?ip={}',
+        'incapsula': 'https://api.whatsmycdn.com/isIncapsulaIP?ip={}'
+    }
+    resp = requests.get(api_url[provider].format(ip), proxies=proxy, timeout=timeout)
+    resp_text = resp.text
+    if 'NOT' in resp_text or 'Invalid' in resp_text:
+        return False
+    else:
+        return True
